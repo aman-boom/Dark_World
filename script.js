@@ -320,15 +320,24 @@ window.confirmDelete = async () => {
   if (!deleteTarget) return;
   const { id, storageKey } = deleteTarget;
   try {
-    // Step 1: Delete from Storage
-    const storRes = await fetch(
-      `${SUPABASE_URL}/storage/v1/object/${STORAGE_BUCKET}/${encodeURIComponent(storageKey)}`,
-      { method: 'DELETE', headers: sbHeaders(true) }
-    );
-    if (!storRes.ok && storRes.status !== 404) {
-      const err = await storRes.text();
-      throw new Error(`Storage delete failed: ${err}`);
+    // Step 1: Delete file from Supabase Storage
+    try {
+      const storRes = await fetch(
+        `${SUPABASE_URL}/storage/v1/object/${STORAGE_BUCKET}`,
+        {
+          method: 'DELETE',
+          headers: sbHeaders(true),
+          body: JSON.stringify({ prefixes: [storageKey] })
+        }
+      );
+      if (!storRes.ok && storRes.status !== 404) {
+        const err = await storRes.text();
+        console.warn('Storage delete warning:', err);
+      }
+    } catch (storErr) {
+      console.warn('Storage deletion failed, proceeding with DB cleanup:', storErr);
     }
+
     // Step 2: Delete DB row
     const dbRes = await fetch(
       `${SUPABASE_URL}/rest/v1/files?id=eq.${encodeURIComponent(id)}`,
